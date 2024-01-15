@@ -1,5 +1,7 @@
 package com.vincent.springbootmall.controller;
 
+import com.vincent.springbootmall.constant.ProductCategory;
+import com.vincent.springbootmall.dto.ProductQueryParams;
 import com.vincent.springbootmall.dto.ProductRequest;
 import com.vincent.springbootmall.model.Product;
 import com.vincent.springbootmall.service.ProductService;
@@ -35,27 +37,33 @@ public class ProductController {
     }
 
     @PutMapping("/products/{productId}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Integer productId,@RequestBody @Valid ProductRequest productRequest){
+    public ResponseEntity<Product> updateProduct(@PathVariable Integer productId, @RequestBody @Valid ProductRequest productRequest) {
         Product product = productService.getProductById(productId);
 
-        if (product == null){
+        if (product == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         productService.updatedProduct(productId, productRequest);
-    Product updateProduct = productService.getProductById(productId);
-    return ResponseEntity.status(HttpStatus.OK).body(updateProduct);
+        Product updateProduct = productService.getProductById(productId);
+        return ResponseEntity.status(HttpStatus.OK).body(updateProduct);
     }
 
     @DeleteMapping("/products/{productId}")
-    public ResponseEntity<?> deleteProduct(@PathVariable Integer productId){
+    public ResponseEntity<?> deleteProduct(@PathVariable Integer productId) {
         productService.deleteProductById(productId);
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
     @GetMapping("/products")
-    public ResponseEntity<List<Product>> getProducts(){
-        List<Product> productList = productService.getProducts();
+    public ResponseEntity<List<Product>> getProducts(
+            @RequestParam(required = false) ProductCategory category,
+            @RequestParam(required = false) String search
+    ) {
+        ProductQueryParams productQueryParams = new ProductQueryParams();
+        productQueryParams.setCategory(category);
+        productQueryParams.setSearch(search);
+        List<Product> productList = productService.getProducts(productQueryParams);
 
         return ResponseEntity.status(HttpStatus.OK).body(productList);
     }
