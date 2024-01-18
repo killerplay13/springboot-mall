@@ -1,7 +1,10 @@
 package com.vincent.springbootmall.model;
 
+import com.vincent.springbootmall.dto.GetOrderItemAndProduct;
+
 import javax.persistence.*;
 import java.util.Date;
+import java.util.List;
 
 @Entity
 @Table(name = "`ORDER`")
@@ -23,6 +26,16 @@ public class Order {
 
     @Column(name = "last_modified_date", nullable = false)
     private Date lastModifiedDate;
+    @Transient
+    private List<GetOrderItemAndProduct> orderItemList;
+
+    public List<GetOrderItemAndProduct> getOrderItemList() {
+        return orderItemList;
+    }
+
+    public void setOrderItemList(List<GetOrderItemAndProduct> orderItemList) {
+        this.orderItemList = orderItemList;
+    }
 
     public Order() {
     }

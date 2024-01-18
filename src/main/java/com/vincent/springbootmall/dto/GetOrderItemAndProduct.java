@@ -1,44 +1,24 @@
-package com.vincent.springbootmall.model;
+package com.vincent.springbootmall.dto;
 
-import javax.persistence.*;
-
-import static java.lang.Integer.valueOf;
-
-@Entity
-@Table(name = "order_item")
-public class OrderItem {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_item_id")
+public class GetOrderItemAndProduct {
     private Integer orderItemId;
-
-    @Column(name = "order_id", nullable = false)
     private Integer orderId;
-
-    @Column(name = "product_id", nullable = false)
     private Integer productId;
-
-    @Column(name = "quantity", nullable = false)
     private Integer quantity;
-
-    @Column(name = "amount", nullable = false)
     private Integer amount;
+    private String productName;
+    private String imageUrl;
 
-    @ManyToOne
-    @JoinColumn(name = "order_id", insertable = false, updatable = false)
-    private Order order;
-
-    public OrderItem() {
-    }
-
-    public OrderItem(Integer orderId, Integer productId, Integer quantity, Integer amount) {
+    public GetOrderItemAndProduct(Integer orderItemId, Integer orderId, Integer productId, Integer quantity,
+                                   Integer amount, String productName, String imageUrl) {
+        this.orderItemId = orderItemId;
         this.orderId = orderId;
         this.productId = productId;
         this.quantity = quantity;
         this.amount = amount;
+        this.productName = productName;
+        this.imageUrl = imageUrl;
     }
-
 
     public Integer getOrderItemId() {
         return orderItemId;
@@ -53,7 +33,7 @@ public class OrderItem {
     }
 
     public void setOrderId(Integer orderId) {
-        this.orderId = valueOf(orderId);
+        this.orderId = orderId;
     }
 
     public Integer getProductId() {
@@ -61,7 +41,7 @@ public class OrderItem {
     }
 
     public void setProductId(Integer productId) {
-        this.productId = valueOf(productId);
+        this.productId = productId;
     }
 
     public Integer getQuantity() {
@@ -78,5 +58,21 @@ public class OrderItem {
 
     public void setAmount(Integer amount) {
         this.amount = amount;
+    }
+
+    public String getProductName() {
+        return productName;
+    }
+
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }
