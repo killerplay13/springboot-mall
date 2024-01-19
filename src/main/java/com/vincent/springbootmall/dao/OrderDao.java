@@ -1,6 +1,7 @@
 package com.vincent.springbootmall.dao;
 
 import com.vincent.springbootmall.dto.GetOrderItemAndProduct;
+import com.vincent.springbootmall.dto.OrderQueryParams;
 import com.vincent.springbootmall.model.Order;
 import com.vincent.springbootmall.model.OrderItem;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,7 @@ import javax.persistence.ColumnResult;
 import javax.persistence.ConstructorResult;
 import javax.persistence.SqlResultSetMapping;
 import javax.persistence.Tuple;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,6 +40,13 @@ public interface OrderDao extends JpaRepository<Order, Integer> {
     @Query(value = "SELECT oi.order_item_id, oi.order_id, oi.product_id, oi.quantity, oi.amount, p.product_name, p.image_url " +
             "FROM order_item as oi LEFT JOIN product as p ON oi.product_id = p.product_id WHERE oi.order_id = :orderId", nativeQuery = true)
     List<Object[]> getOrderItemsWithProduct(@Param("orderId") Integer orderId);
+
+    @Query(value = "SELECT COUNT(*) FROM `Order` WHERE 1=1",nativeQuery = true)
+    Integer countOrder(OrderQueryParams orderQueryParams);
+
+    @Query(value = "SELECT order_id, user_id,total_amount, created_date, last_modified_date FROM `order` WHERE 1=1",nativeQuery = true)
+    List<Order> getOrders(OrderQueryParams orderQueryParams);
+
 }
 
 
