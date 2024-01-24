@@ -38,4 +38,6 @@ public interface ProductDao {
     Product getProductDatabaseOperation(Integer productId);
 
     Product getProductLocalFileOperation(Integer productId);
+
+    Product getProductJMSOperation(Integer productId);
 }

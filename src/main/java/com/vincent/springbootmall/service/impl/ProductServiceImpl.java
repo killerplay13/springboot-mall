@@ -78,7 +78,7 @@ public class ProductServiceImpl implements ProductService {
             case "localfile":
                 return productDao.getProductLocalFileOperation(productId);
             case "jms":
-                return null;
+                return productDao.getProductJMSOperation(productId);
             default:
                 throw new IllegalArgumentException("Invalid data operation type");
         }

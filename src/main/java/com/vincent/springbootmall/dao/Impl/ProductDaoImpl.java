@@ -1,10 +1,12 @@
 package com.vincent.springbootmall.dao.Impl;
 
+import com.tibco.tibjms.TibjmsQueueConnectionFactory;
 import com.vincent.springbootmall.constant.ProductCategory;
 import com.vincent.springbootmall.dao.ProductDao;
 import com.vincent.springbootmall.dto.ProductQueryParams;
 import com.vincent.springbootmall.dto.ProductRequest;
 import com.vincent.springbootmall.model.Product;
+import com.vincent.springbootmall.util.ShortUuidGenerator;
 import com.vincent.springbootmall.rowmapper.ProductRowMapper;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.jms.*;
 import javax.jms.Queue;
@@ -31,6 +34,7 @@ public class ProductDaoImpl implements ProductDao {
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     static Integer fileProductId = 0;
+    static Integer jmsProductId = 0;
 
     @Override
     public Product getProductById(Integer productId) {
@@ -289,7 +293,7 @@ public class ProductDaoImpl implements ProductDao {
         String username = "admin";
         String password = "admin";
         ConnectionFactory connectionFactory = null;
-        Integer productId = 0;
+        String productUuid = null;
         try {
             connectionFactory = createConnectionFactory(serverUrl, username, password);
         } catch (JMSException e) {
@@ -297,7 +301,8 @@ public class ProductDaoImpl implements ProductDao {
         }
         try (Connection connection = connectionFactory.createConnection()) {
             connection.start();
-            productId++;
+            jmsProductId++;
+            productUuid =  ShortUuidGenerator.generatorShortUuid();
             String message = CovertToMessage(productRequest);
             Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
             Destination destination = session.createQueue("mall.FOO"); //send to Queue
@@ -307,13 +312,14 @@ public class ProductDaoImpl implements ProductDao {
             producer.setDeliveryMode(DeliveryMode.PERSISTENT);
             producer1.setDeliveryMode(DeliveryMode.PERSISTENT);
             TextMessage textMessage = session.createTextMessage(message);
-            textMessage.setStringProperty("productId", productId.toString());
+            textMessage.setStringProperty("productId", jmsProductId.toString());
+            textMessage.setStringProperty("productUuid",productUuid);
             producer.send(textMessage);
             producer1.send(textMessage);
         } catch (JMSException jmsException) {
             jmsException.printStackTrace();
         }
-        return productId;
+        return jmsProductId;
     }
 
     private String CovertToMessage(ProductRequest productRequest) {
@@ -380,7 +386,40 @@ public class ProductDaoImpl implements ProductDao {
         return null;
     }
 
+    @Override
+    public Product getProductJMSOperation(Integer productId) {
+        String serverUrl = "tcp://127.0.0.1:7222";
+        String username = "admin";
+        String password = "admin";
+        String queueName = "mall.FOO";
 
+
+        AtomicReference<Product> receivedProduct = new AtomicReference<>();
+        try {
+        QueueConnectionFactory factory = new TibjmsQueueConnectionFactory(serverUrl);
+        QueueConnection connection = factory.createQueueConnection(username, password);
+        connection.start();
+        QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+        Queue queue = session.createQueue(queueName);
+        MessageConsumer consumer = session.createConsumer(queue);
+        consumer.setMessageListener(message -> {
+            if (message instanceof TextMessage) {
+                try {
+                    TextMessage textMessage = (TextMessage) message;
+                    Product product = Product.fromJson(textMessage.getText());
+                    receivedProduct.set(product);
+                } catch (JMSException e) {
+                    e.printStackTrace();
+                }}
+        });
+            Thread.sleep(1000);
+            connection.close();
+        } catch (JMSException | InterruptedException e) {
+            e.printStackTrace();
+        }
+        Product product = receivedProduct.get();
+        return product;
+    }
 }
 
 
