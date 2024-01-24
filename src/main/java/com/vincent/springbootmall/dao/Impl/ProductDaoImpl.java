@@ -260,7 +260,7 @@ public class ProductDaoImpl implements ProductDao {
         File folder = new File(folderPath);
         File[] files = folder.listFiles();
 
-        int largestId = Integer.MIN_VALUE;
+        int largestId = 0;
 
         if (files != null) {
             for (File file : files) {
@@ -273,6 +273,7 @@ public class ProductDaoImpl implements ProductDao {
 
         return largestId;
     }
+
     private static int extractId(String fileName) {
         try {
             String[] parts = fileName.split("_");
