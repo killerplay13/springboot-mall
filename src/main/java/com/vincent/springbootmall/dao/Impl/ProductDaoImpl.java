@@ -229,6 +229,7 @@ public class ProductDaoImpl implements ProductDao {
         String fileName = null;
         String fileContent = null;
         String outputfile = "D:/HahowSpringBootLab/productFile";
+        int fileProductId = getLargestId(outputfile);
         try {
             fileProductId++;
             fileName = fileProductId + "_" + productRequest.getCategory() + "_" + productRequest.getProductName() + ".txt";
@@ -252,6 +253,32 @@ public class ProductDaoImpl implements ProductDao {
     private void writeToFile(Path filePath, String content) throws IOException {
         try (FileWriter fileWriter = new FileWriter(filePath.toFile())) {
             fileWriter.write(content);
+        }
+    }
+
+    private static int getLargestId(String folderPath) {
+        File folder = new File(folderPath);
+        File[] files = folder.listFiles();
+
+        int largestId = Integer.MIN_VALUE;
+
+        if (files != null) {
+            for (File file : files) {
+                int fileId = extractId(file.getName());
+                if (fileId != -1) {
+                    largestId = Math.max(largestId, fileId);
+                }
+            }
+        }
+
+        return largestId;
+    }
+    private static int extractId(String fileName) {
+        try {
+            String[] parts = fileName.split("_");
+            return Integer.parseInt(parts[0]);
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            return -1; // Invalid ID
         }
     }
 
