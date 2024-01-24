@@ -6,6 +6,7 @@ import com.vincent.springbootmall.dto.ProductRequest;
 import com.vincent.springbootmall.model.Product;
 import com.vincent.springbootmall.service.ProductService;
 import com.vincent.springbootmall.util.page;
+import io.swagger.annotations.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import java.util.List;
 
+@Api(tags = "product 相關API")
 @Validated
 @RestController
 public class ProductController {
@@ -24,9 +26,15 @@ public class ProductController {
     @Autowired
     private ProductService productService;
 
+    @ApiOperation("取得產品 by ID")
+    @ApiResponses({
+            @ApiResponse(code = 401, message = "沒有權限"),
+            @ApiResponse(code = 404, message = "找不到路徑")
+    })
     @GetMapping("/products/{productId}")
     public ResponseEntity<Product> getProduct(@PathVariable Integer productId) {
-        Product product = productService.getProductById(productId);
+        Product product = productService.getProductById(productId);// then send to EMS
+//        Product product = productService.getProductFromLocalFile(productId); //
         if (product != null) {
             return ResponseEntity.status(HttpStatus.OK).body(product);
         } else {
@@ -41,6 +49,11 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(product);
     }
 
+    @ApiOperation("更新產品")
+    @ApiResponses({
+            @ApiResponse(code = 401, message = "沒有權限"),
+            @ApiResponse(code = 404, message = "找不到路徑")
+    })
     @PutMapping("/products/{productId}")
     public ResponseEntity<Product> updateProduct(@PathVariable Integer productId, @RequestBody @Valid ProductRequest productRequest) {
         Product product = productService.getProductById(productId);
@@ -53,6 +66,11 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.OK).body(updateProduct);
     }
 
+    @ApiOperation("刪除產品")
+    @ApiResponses({
+            @ApiResponse(code = 401, message = "沒有權限"),
+            @ApiResponse(code = 404, message = "找不到路徑")
+    })
     @DeleteMapping("/products/{productId}")
     public ResponseEntity<?> deleteProduct(@PathVariable Integer productId) {
         productService.deleteProductById(productId);
@@ -60,6 +78,11 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
+    @ApiOperation("取得全部產品")
+    @ApiResponses({
+            @ApiResponse(code = 401, message = "沒有權限"),
+            @ApiResponse(code = 404, message = "找不到路徑")
+    })
     @GetMapping("/products")
     public ResponseEntity<page<Product>> getProducts(
             //Filtering
@@ -88,5 +111,17 @@ public class ProductController {
         page.setTotal(total);
         page.setResult(productList);
         return ResponseEntity.status(HttpStatus.OK).body(page);
+    }
+
+    @ApiOperation("新增產品(3種方式)")
+    @ApiResponses({
+            @ApiResponse(code = 401, message = "沒有權限"),
+            @ApiResponse(code = 404, message = "找不到路徑")
+    })
+    @PostMapping("/products/{dataOperation}")
+    public ResponseEntity<Product> createProductByOperation(@RequestBody @Valid ProductRequest productRequest, @PathVariable @ApiParam("操作模式(database/localFile/jms)") String dataOperation) {
+        Integer productId = productService.createProductByOperation(productRequest, dataOperation);
+        Product product = productService.getProductByOperation(productId, dataOperation);
+        return ResponseEntity.status(HttpStatus.CREATED).body(product);
     }
 }

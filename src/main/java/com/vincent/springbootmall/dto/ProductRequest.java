@@ -1,26 +1,35 @@
 package com.vincent.springbootmall.dto;
 
 import com.vincent.springbootmall.constant.ProductCategory;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 import javax.validation.constraints.NotNull;
 
+@ApiModel("產品需求")
 public class ProductRequest {
 
     @NotNull
+    @ApiModelProperty("產品名稱")
     private String productName;
 
     @NotNull
+    @ApiModelProperty("產品分類")
     private ProductCategory category;
 
     @NotNull
+    @ApiModelProperty("產品照片")
     private String imageUrl;
 
     @NotNull
+    @ApiModelProperty("產品價格")
     private Integer price;
 
     @NotNull
+    @ApiModelProperty("產品庫存")
     private Integer stock;
 
+    @ApiModelProperty("產品描述")
     private String description;
 
     public String getProductName() {

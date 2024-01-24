@@ -19,4 +19,10 @@ public interface ProductService {
     List<Product> getProducts(ProductQueryParams productQueryParams);
 
     Integer countProduct(ProductQueryParams productQueryParams);
+
+    Product getProductByOperation(Integer productId, String dataOperation);
+
+    Integer createProductByOperation(ProductRequest productRequest, String dataOperation);
+
+
 }

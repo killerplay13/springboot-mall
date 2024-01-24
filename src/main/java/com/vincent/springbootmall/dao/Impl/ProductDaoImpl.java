@@ -6,19 +6,31 @@ import com.vincent.springbootmall.dto.ProductQueryParams;
 import com.vincent.springbootmall.dto.ProductRequest;
 import com.vincent.springbootmall.model.Product;
 import com.vincent.springbootmall.rowmapper.ProductRowMapper;
+import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.jdbc.support.KeyHolder;
 
+import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
+
+import javax.jms.*;
+import javax.jms.Queue;
+
+import com.tibco.tibjms.TibjmsConnectionFactory;
 
 @Component
 public class ProductDaoImpl implements ProductDao {
     @Autowired
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    static Integer fileProductId = 0;
 
     @Override
     public Product getProductById(Integer productId) {
@@ -31,7 +43,6 @@ public class ProductDaoImpl implements ProductDao {
             return productList.get(0);
         } else {
             return null;
-
         }
     }
 
@@ -133,7 +144,32 @@ public class ProductDaoImpl implements ProductDao {
         namedParameterJdbcTemplate.update(sql, paramMap);
     }
 
-    private String addFiltreringSql(String sql, Map<String, Object> map, ProductQueryParams productQueryParams){
+    @Override
+    public Integer recordToLocalFile(ProductRequest productRequest) {
+        String fileName = null;
+        String fileContent = null;
+        Integer productId = createProduct(productRequest);
+        String outputfile = "D:/HahowSpringBootLab/productFile";
+        try {
+            fileName = productId + "_" + productRequest.getCategory() + "_" + productRequest.getProductName() + ".txt";
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("productName", productRequest.getProductName());
+            jsonObject.put("category", productRequest.getCategory().name());
+            jsonObject.put("imageUrl", productRequest.getImageUrl());
+            jsonObject.put("price", productRequest.getPrice());
+            jsonObject.put("stock", productRequest.getStock());
+            jsonObject.put("description", productRequest.getDescription());
+            fileContent = jsonObject.toString();
+            Path filePath = Paths.get(outputfile, fileName);
+            writeToFile(filePath, fileContent);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return productId;
+    }
+
+    private String addFiltreringSql(String sql, Map<String, Object> map, ProductQueryParams productQueryParams) {
         if (productQueryParams.getCategory() != null) {
             sql = sql + " AND category = :category";
             map.put("category", productQueryParams.getCategory().name());
@@ -146,7 +182,180 @@ public class ProductDaoImpl implements ProductDao {
         return sql;
     }
 
+    public void sendToTIBCOEMS(String message) throws JMSException {
+        String serverUrl = "tcp://127.0.0.1:7222";
+        String username = "admin";
+        String password = "admin";
+        ConnectionFactory connectionFactory = createConnectionFactory(serverUrl, username, password);
+        try (Connection connection = connectionFactory.createConnection()) {
+            connection.start();
+            Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            Destination destination = session.createQueue("mall.FOO");
+            MessageProducer producer = session.createProducer(destination);
+            producer.setDeliveryMode(DeliveryMode.PERSISTENT);
+            TextMessage textMessage = session.createTextMessage(message);
+            producer.send(textMessage);
+        } catch (JMSException jmsException) {
+            jmsException.printStackTrace();
+        }
+    }
+
+    @Override
+    public Integer createProductDatabaseOperation(ProductRequest productRequest) {
+        String sql = "INSERT INTO product (product_name, category, image_url, price, stock, description, created_date, last_modified_date)" +
+                "VALUES (:productName, :category, :imageUrl, :price, :stock, :description, :createdDate, :lastModifiedDate)";
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("productName", productRequest.getProductName());
+        map.put("category", productRequest.getCategory().toString());
+        map.put("imageUrl", productRequest.getImageUrl());
+        map.put("price", productRequest.getPrice());
+        map.put("stock", productRequest.getStock());
+        map.put("description", productRequest.getDescription());
+
+        Date now = new Date();
+        map.put("createdDate", now);
+        map.put("lastModifiedDate", now);
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        namedParameterJdbcTemplate.update(sql, new MapSqlParameterSource(map), keyHolder);
+
+        int productId = keyHolder.getKey().intValue();
+        return productId;
+    }
+
+    @Override
+    public Integer createProductLocalFileOperation(ProductRequest productRequest) {
+        String fileName = null;
+        String fileContent = null;
+        String outputfile = "D:/HahowSpringBootLab/productFile";
+        try {
+            fileProductId++;
+            fileName = fileProductId + "_" + productRequest.getCategory() + "_" + productRequest.getProductName() + ".txt";
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("productName", productRequest.getProductName());
+            jsonObject.put("category", productRequest.getCategory().name());
+            jsonObject.put("imageUrl", productRequest.getImageUrl());
+            jsonObject.put("price", productRequest.getPrice());
+            jsonObject.put("stock", productRequest.getStock());
+            jsonObject.put("description", productRequest.getDescription());
+            fileContent = jsonObject.toString();
+            Path filePath = Paths.get(outputfile, fileName);
+            writeToFile(filePath, fileContent);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return fileProductId;
+    }
+
+    private void writeToFile(Path filePath, String content) throws IOException {
+        try (FileWriter fileWriter = new FileWriter(filePath.toFile())) {
+            fileWriter.write(content);
+        }
+    }
+
+    @Override
+    public Integer createProductJMSOperation(ProductRequest productRequest) {
+        String serverUrl = "tcp://127.0.0.1:7222";
+        String username = "admin";
+        String password = "admin";
+        ConnectionFactory connectionFactory = null;
+        Integer productId = 0;
+        try {
+            connectionFactory = createConnectionFactory(serverUrl, username, password);
+        } catch (JMSException e) {
+            throw new RuntimeException(e);
+        }
+        try (Connection connection = connectionFactory.createConnection()) {
+            connection.start();
+            productId++;
+            String message = CovertToMessage(productRequest);
+            Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            Destination destination = session.createQueue("mall.FOO"); //send to Queue
+            Destination destination1 = session.createTopic("mall.FOO");//send to Topic
+            MessageProducer producer = session.createProducer(destination);
+            MessageProducer producer1 = session.createProducer(destination1);
+            producer.setDeliveryMode(DeliveryMode.PERSISTENT);
+            producer1.setDeliveryMode(DeliveryMode.PERSISTENT);
+            TextMessage textMessage = session.createTextMessage(message);
+            textMessage.setStringProperty("productId", productId.toString());
+            producer.send(textMessage);
+            producer1.send(textMessage);
+        } catch (JMSException jmsException) {
+            jmsException.printStackTrace();
+        }
+        return productId;
+    }
+
+    private String CovertToMessage(ProductRequest productRequest) {
+        String message = null;
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("productName", productRequest.getProductName());
+        jsonObject.put("category", productRequest.getCategory().name());
+        jsonObject.put("imageUrl", productRequest.getImageUrl());
+        jsonObject.put("price", productRequest.getPrice());
+        jsonObject.put("stock", productRequest.getStock());
+        jsonObject.put("description", productRequest.getDescription());
+        message = jsonObject.toString();
+        return message;
+    }
+
+    private static ConnectionFactory createConnectionFactory(String serverUrl, String username, String password) throws JMSException {
+        TibjmsConnectionFactory connectionFactory = new TibjmsConnectionFactory();
+        connectionFactory.setServerUrl(serverUrl);
+        connectionFactory.setUserName(username);
+        connectionFactory.setUserPassword(password);
+
+        return connectionFactory;
+    }
+
+    @Override
+    public Product getProductDatabaseOperation(Integer productId) {
+        String sql = "SELECT product_id, product_name, category, image_url, price, stock, description, created_date, last_modified_date FROM product WHERE product_id = :productId";
+
+        Map<String, Integer> map = new HashMap<>();
+        map.put("productId", productId);
+        List<Product> productList = namedParameterJdbcTemplate.query(sql, map, new ProductRowMapper());
+        if (productList.size() > 0) {
+            return productList.get(0);
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public Product getProductLocalFileOperation(Integer productId) {
+        String fileLocation = "D:/HahowSpringBootLab/productFile";
+        File directory = new File(fileLocation);
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.getName().contains(productId.toString())) {
+                    String filePath = file.getAbsolutePath();
+                    return readProductFromFile(productId, filePath);
+                }
+            }
+        }
+        return null;
+    }
+
+    private Product readProductFromFile(Integer productId, String filePath) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String productInfo = reader.readLine();
+            Product product = Product.fromJson(productInfo);
+            product.setProductId(productId);
+            return product;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 
 }
+
+
+
 
 
